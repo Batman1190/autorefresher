@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Page Refresher</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            padding: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success { background-color: #e8f5e9; color: #2e7d32; }
+        .error { background-color: #ffebee; color: #c62828; }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #1976d2;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover { background-color: #1565c0; }
+        button:disabled { background-color: #bdbdbd; cursor: not-allowed; }
+        iframe { 
+            width: 100%; 
+            height: 70vh; 
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Auto Page Refresher</h2>
+        <div class="controls">
+            <input type="text" id="urlInput" value="https://mytube.space" style="padding: 8px; width: 300px; margin-right: 10px;">
+            <button onclick="startRefresh()">Start Refresh</button>
+            <button onclick="stopRefresh()" disabled>Stop</button>
+        </div>
+        
+        <div class="status" id="status"></div>
+        <p>Next refresh in: <span id="timer">-</span> seconds</p>
+        
+        <iframe id="webpage" sandbox="allow-same-origin allow-scripts"></iframe>
+    </div>
+
+    <script>
+        let refreshTimer;
+        let countdownTimer;
+        const startButton = document.querySelector('button');
+        const stopButton = document.querySelector('button:last-of-type');
+        const statusDiv = document.getElementById('status');
+        const timerSpan = document.getElementById('timer');
+        const iframe = document.getElementById('webpage');
+        const urlInput = document.getElementById('urlInput');
+
+        function getRandomInterval() {
+            return Math.floor(Math.random() * (40 - 15 + 1)) + 15; // Random between 15-40 seconds
+        }
+
+        function updateStatus(message, isError = false) {
+            statusDiv.className = 'status ' + (isError ? 'error' : 'success');
+            statusDiv.textContent = message;
+        }
+
+        function updateTimer(seconds) {
+            timerSpan.textContent = seconds;
+        }
+
+        function startCountdown(seconds) {
+            let remaining = seconds;
+            updateTimer(remaining);
+            
+            clearInterval(countdownTimer);
+            countdownTimer = setInterval(() => {
+                remaining--;
+                updateTimer(remaining);
+                if (remaining <= 0) clearInterval(countdownTimer);
+            }, 1000);
+        }
+
+        function refreshPage() {
+            const url = urlInput.value.trim();
+            if (!url) {
+                updateStatus('Please enter a valid URL', true);
+                stopRefresh();
+                return;
+            }
+
+            try {
+                new URL(url); // Validate URL format
+            } catch (e) {
+                updateStatus('Invalid URL format', true);
+                stopRefresh();
+                return;
+            }
+
+            const interval = getRandomInterval();
+            iframe.src = url + '?t=' + Date.now(); // Add timestamp to prevent caching
+            
+            updateStatus('Page refreshed successfully');
+            startCountdown(interval);
+
+            clearTimeout(refreshTimer);
+            refreshTimer = setTimeout(refreshPage, interval * 1000);
+        }
+
+        function startRefresh() {
+            startButton.disabled = true;
+            stopButton.disabled = false;
+            urlInput.disabled = true;
+            updateStatus('Auto-refresh started');
+            refreshPage();
+        }
+
+        function stopRefresh() {
+            clearTimeout(refreshTimer);
+            clearInterval(countdownTimer);
+            startButton.disabled = false;
+            stopButton.disabled = true;
+            urlInput.disabled = false;
+            updateStatus('Auto-refresh stopped');
+            updateTimer('-');
+        }
+
+        // Handle iframe load errors
+        iframe.onerror = () => {
+            updateStatus('Failed to load the page. The website might block iframe loading.', true);
+        };
+
+        iframe.onload = () => {
+            updateStatus('Page loaded successfully');
+        };
+    </script>
+</body>
+</html>
